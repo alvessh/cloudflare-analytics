@@ -77,7 +77,7 @@ class CloudflareAPI:
             "filter": {
                 "datetime_geq": start_time.isoformat(),
                 "datetime_leq": end_time.isoformat(),
-                "action": "block",
+                "action": "managed_challenge",
             },
         }
         try:
