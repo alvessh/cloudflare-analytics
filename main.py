@@ -2,6 +2,8 @@ import requests
 import csv
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+from collections import defaultdict
+from urllib.parse import urlparse
 import os
 
 load_dotenv()
@@ -196,9 +198,10 @@ class FirewallEventManager:
         print(f"{len(events)} eventos salvos em '{self.output_csv}'.")
 
 class PageShieldManager:
-    def __init__(self, api_token, output_csv="page_shield_logs.csv", specific_zone=None):
+    def __init__(self, api_token, output_csv="page_shield_logs.csv", summary_csv="page_shield_summary.csv", specific_zone=None):
         self.api_token = api_token
         self.output_csv = output_csv
+        self.summary_csv = summary_csv
         self.specific_zone = specific_zone
         self.cloudflare_api = CloudflareAPI(api_token)
 
@@ -231,6 +234,34 @@ class PageShieldManager:
                     "Páginas Relacionadas": ", ".join(log.get("page_urls", []))
                 })
 
+    def generate_summary_csv(self, logs):
+        """ Gera um CSV de resumo, agrupando por domínio da URL e host """
+        summary_data = defaultdict(int)
+
+        for log in logs:
+            url = log.get("url", "")
+            host = log.get("host", "")
+
+            domain = urlparse(url).netloc
+
+            key = (domain, host)
+
+            summary_data[key] += 1
+
+        with open(self.summary_csv, "w", newline="", encoding="utf-8") as csvfile:
+            fieldnames = ["Domínio da URL", "Host", "Quantidade de Ocorrências"]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for (domain, host), count in summary_data.items():
+                writer.writerow({
+                    "Domínio da URL": domain,
+                    "Host": host,
+                    "Quantidade de Ocorrências": count
+                })
+
+        print(f"Resumo salvo em '{self.summary_csv}'.")
+    
     def fetch_and_save_logs(self):
         """ Busca e salva os logs do Page Shield para as zonas (ou apenas a zona específica, se fornecida) """
         zones = []
@@ -259,6 +290,7 @@ class PageShieldManager:
             return
 
         self.save_logs_to_csv(all_logs)
+        self.generate_summary_csv(all_logs) # monta um resumo
         print(f"{len(all_logs)} registros salvos em '{self.output_csv}'.") 
 
 if __name__ == "__main__":
