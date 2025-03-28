@@ -199,7 +199,7 @@ class PageShieldManager:
     def __init__(self, api_token, output_csv="page_shield_logs.csv", specific_zone=None):
         self.api_token = api_token
         self.output_csv = output_csv
-        self.specific_zone = specific_zone  # Zona específica (se fornecida)
+        self.specific_zone = specific_zone
         self.cloudflare_api = CloudflareAPI(api_token)
 
     def save_logs_to_csv(self, logs):
@@ -232,8 +232,14 @@ class PageShieldManager:
                 })
 
     def fetch_and_save_logs(self):
-        """ Busca e salva os logs do Page Shield para todas as zonas """
-        zones = self.cloudflare_api.get_zones()
+        """ Busca e salva os logs do Page Shield para as zonas (ou apenas a zona específica, se fornecida) """
+        zones = []
+
+        if self.specific_zone:
+            zones.append({"id": self.specific_zone, "name": self.specific_zone})
+        else:
+            zones = self.cloudflare_api.get_zones()
+
         if not zones:
             print("Nenhuma zona disponível. Encerrando.")
             return
@@ -253,15 +259,17 @@ class PageShieldManager:
             return
 
         self.save_logs_to_csv(all_logs)
-        print(f"{len(all_logs)} registros salvos em '{self.output_csv}'.")    
+        print(f"{len(all_logs)} registros salvos em '{self.output_csv}'.") 
 
 if __name__ == "__main__":
     API_TOKEN = os.getenv("API_TOKEN")
+    SPECIFIC_ZONE = os.getenv("SPECIFIC_ZONE")
+
     if not API_TOKEN:
         print("API_TOKEN não encontrado no arquivo .env.")
     else:
         # event_manager = FirewallEventManager(API_TOKEN)
         # event_manager.fetch_and_save_events()
 
-        shield_manager = PageShieldManager(API_TOKEN)
+        shield_manager = PageShieldManager(API_TOKEN, specific_zone=SPECIFIC_ZONE)
         shield_manager.fetch_and_save_logs()
